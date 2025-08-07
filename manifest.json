@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Job Application Assistant",
+  "version": "1.0",
+  "description": "Auto-fill job forms, download CV, and generate responses using OpenAI.",
+  "permissions": ["storage", "scripting", "activeTab"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "dataStructure.js",
+        "storage.js",
+        "fieldDetector.js",
+        "fieldMapper.js",
+        "companyExtractor.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["CV_default.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

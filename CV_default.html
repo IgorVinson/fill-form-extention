@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Igor Vinson - Full Stack Developer</title>
+    <style>
+      /* ATS-Friendly One-Page Design - 2025 Best Practices */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Calibri", "Arial", sans-serif;
+        line-height: 1.35;
+        color: #333;
+        background: white;
+        font-size: 10pt;
+      }
+
+      .container {
+        max-width: 8.5in;
+        margin: 0 auto;
+        padding: 0.15in 0.7in;
+        background: white;
+      }
+
+      /* Header Section - Compact */
+      .header {
+        margin-bottom: 10px;
+        border-bottom: 2px solid #2c3e50;
+        padding-bottom: 8px;
+      }
+
+      .name {
+        font-size: 22pt;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 4px;
+      }
+
+      .professional-title {
+        font-size: 12pt;
+        color: #555;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .contact-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        font-size: 9.5pt;
+        color: #555;
+      }
+
+      .contact-item a {
+        color: #2c3e50;
+        text-decoration: none;
+      }
+
+      /* Section Styling - Compact */
+      .section {
+        margin-bottom: 10px;
+      }
+
+      .section-title {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #2c3e50;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        padding-bottom: 2px;
+        border-bottom: 1px solid #ddd;
+        letter-spacing: 0.5px;
+      }
+
+      /* Professional Summary */
+      .summary {
+        text-align: left;
+        margin-bottom: 0;
+        font-size: 10pt;
+        line-height: 1.4;
+      }
+
+      /* Skills Section - Compact */
+      .skills-container {
+        font-size: 9.5pt;
+        line-height: 1.3;
+      }
+
+      .skill-line {
+        margin-bottom: 3px;
+      }
+
+      .skill-label {
+        font-weight: bold;
+        color: #555;
+        display: inline-block;
+        min-width: 100px;
+      }
+
+      /* Experience Section - Compact */
+      .experience-item {
+        margin-bottom: 10px;
+      }
+
+      .job-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 2px;
+      }
+
+      .job-title {
+        font-weight: bold;
+        font-size: 10.5pt;
+        color: #333;
+      }
+
+      .company-name {
+        color: #555;
+        font-style: italic;
+      }
+
+      .job-date {
+        font-size: 9.5pt;
+        color: #666;
+        white-space: nowrap;
+      }
+
+      .job-location {
+        font-size: 9pt;
+        color: #666;
+        margin-bottom: 4px;
+      }
+
+      .achievements {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .achievement-item {
+        position: relative;
+        padding-left: 15px;
+        margin-bottom: 2px;
+        font-size: 9.5pt;
+        line-height: 1.35;
+      }
+
+      .achievement-item:before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        color: #2c3e50;
+      }
+
+      /* Education Section - Compact */
+      .education-item {
+        font-size: 10pt;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+
+      .degree {
+        font-weight: bold;
+        color: #333;
+      }
+
+      .education-date {
+        font-size: 9.5pt;
+        color: #666;
+      }
+
+      /* Projects - Detailed Section */
+      .project-item {
+        margin-bottom: 6px;
+        font-size: 9.5pt;
+      }
+
+      .project-title {
+        font-weight: bold;
+        color: #333;
+        display: inline;
+      }
+
+      .project-tech {
+        color: #666;
+        font-style: italic;
+        display: inline;
+      }
+
+      .project-description {
+        line-height: 1.35;
+        margin-top: 2px;
+      }
+
+      /* Print Optimization */
+      @media print {
+        body {
+          font-size: 9.5pt;
+        }
+        .container {
+          padding: 0.5in;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header Section -->
+      <div class="header">
+        <div class="name">IGOR VINSON</div>
+        <div class="professional-title">Full Stack Developer</div>
+        <div class="contact-info">
+          <span>(509) 609-9820</span>
+          <span>igorvinson@gmail.com</span>
+          <span
+            ><a href="https://linkedin.com/in/ihor-vin/"
+              >linkedin.com/in/ihor-vin</a
+            ></span
+          >
+          <span>Raleigh, NC</span>
+        </div>
+      </div>
+
+      <!-- Professional Summary -->
+      <div class="section">
+        <div class="section-title">PROFESSIONAL SUMMARY</div>
+        <div class="summary">
+          Passionate developer with experience building scalable web
+          applications and automation systems using React, Node.js, and Next.js.
+          Specialized in configuration-driven architectures, API integrations,
+          and process automation. Successfully delivered complex CRM platforms
+          and automated business solutions while leading development teams.
+        </div>
+      </div>
+
+      <!-- Technical Skills -->
+      <div class="section">
+        <div class="section-title">TECHNICAL SKILLS</div>
+        <div class="skills-container">
+          <div class="skill-line">
+            <span class="skill-label">Languages:</span>
+            JavaScript (ES6+), TypeScript, Python, HTML5, CSS3, SQL
+          </div>
+          <div class="skill-line">
+            <span class="skill-label">Frontend:</span>
+            React, Next.js, Tailwind CSS, Material-UI, TanStack Query, Redux,
+            Zustand
+          </div>
+          <div class="skill-line">
+            <span class="skill-label">Backend:</span>
+            Node.js, Express.js, REST APIs, Prisma ORM, NestJS
+          </div>
+          <div class="skill-line">
+            <span class="skill-label">Database/Cloud:</span>
+            PostgreSQL, MongoDB, Supabase, AWS (EC2, S3), Docker, CI/CD
+          </div>
+          <div class="skill-line">
+            <span class="skill-label">Tools:</span>
+            Git, Webpack, Jest, Puppeteer, ESLint, Prettier, Postman
+          </div>
+        </div>
+      </div>
+      <!-- Professional Experience -->
+      <div class="section">
+        <div class="section-title">PROFESSIONAL EXPERIENCE</div>
+
+        <div class="experience-item">
+          <div class="job-header">
+            <div>
+              <span class="job-title">Full Stack Engineer</span>
+              <span class="company-name">– Digital Vertex</span>
+            </div>
+            <span class="job-date">Jun 2022 – Present</span>
+          </div>
+          <div class="job-location">Atlanta, GA (Remote)</div>
+          <ul class="achievements">
+            <li class="achievement-item">
+              Reduced development time 40% by creating reusable React component
+              library (50+ components) adopted by 5 teams
+            </li>
+            <li class="achievement-item">
+              Built configuration-driven CRM platform with NestJS backend and
+              Next.js frontend serving enterprise clients
+            </li>
+            <li class="achievement-item">
+              Developed automated job management system integrating Puppeteer,
+              Gmail API, and Telegram Bot API
+            </li>
+            <li class="achievement-item">
+              Optimized application performance achieving 35% faster page loads
+              and improving system uptime
+            </li>
+            <li class="achievement-item">
+              Integrated Twilio and Google Maps APIs, improving delivery
+              efficiency by 15% for 50+ daily orders
+            </li>
+          </ul>
+        </div>
+
+        <div class="experience-item">
+          <div class="job-header">
+            <div>
+              <span class="job-title">Frontend Developer</span>
+              <span class="company-name">– Skiniya Furniture</span>
+            </div>
+            <span class="job-date">Feb 2020 – Apr 2022</span>
+          </div>
+          <div class="job-location">Remote</div>
+          <ul class="achievements">
+            <li class="achievement-item">
+              Developed 10+ WordPress websites for local service businesses
+              (roofing, siding, flooring companies)
+            </li>
+            <li class="achievement-item">
+              Created responsive designs for sites averaging 3,000 monthly users
+              with mobile-first approach
+            </li>
+            <li class="achievement-item">
+              Built custom project management system increasing team
+              productivity by 70%
+            </li>
+            <!-- <li class="achievement-item">
+              Implemented SEO optimizations improving client search rankings by
+              45%
+            </li> -->
+          </ul>
+        </div>
+
+        <div class="experience-item">
+          <div class="job-header">
+            <div>
+              <span class="job-title">CEO / Founder</span>
+              <span class="company-name">– Deshevlekuhni.net</span>
+            </div>
+            <span class="job-date">Aug 2011 – Feb 2020</span>
+          </div>
+          <div class="job-location">Ukraine</div>
+          <ul class="achievements">
+            <li class="achievement-item">
+              Founded and scaled furniture manufacturing company to $500K
+              revenue with 15+ employees
+            </li>
+            <li class="achievement-item">
+              Developed website and ordering system generating 40% of sales
+              through digital channels
+            </li>
+            <li class="achievement-item">
+              Established partnerships with 20+ B2B clients securing $300K+ in
+              contracts
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Key Projects -->
+      <div class="section">
+        <div class="section-title">KEY PROJECTS</div>
+        <div class="project-item">
+          <div>
+            <span class="project-title"
+              >Configuration-Driven CRM Platform (Kompot)</span
+            >
+            <span class="project-tech">
+              – NestJS, Next.js, TypeORM, PostgreSQL, BullMQ</span
+            >
+          </div>
+          <div class="project-description">
+            Architected config-first CRM where JSON configurations generate
+            TypeScript entities, handlers, and migrations. Built builder system
+            that processes configs into full-stack modules with real-time
+            WebSocket updates.
+          </div>
+        </div>
+        <div class="project-item">
+          <div>
+            <span class="project-title">Technician Job Automation System</span>
+            <span class="project-tech">
+              – Node.js, Puppeteer, Gmail API, Calendar API, Telegram Bot</span
+            >
+          </div>
+          <div class="project-description">
+            Built automated system for field technicians to manage
+            WorkMarket/FieldNation job applications. Features automated job
+            monitoring, eligibility evaluation, and schedule conflict detection.
+            Reduced manual application time by 90%.
+          </div>
+        </div>
+        <div class="project-item">
+          <div>
+            <span class="project-title">Goal Tracking & Reporting System</span>
+            <span class="project-tech">
+              – React, TypeScript, Vite, Supabase, TanStack Query</span
+            >
+          </div>
+          <div class="project-description">
+            Developed full-stack application for objective tracking with metric
+            planning, daily progress reporting, and performance analytics.
+            Implemented real-time data synchronization, complex metric
+            calculations, and responsive dashboards.
+          </div>
+        </div>
+      </div>
+
+      <!-- Education -->
+      <div class="section">
+        <div class="section-title">EDUCATION</div>
+        <div class="education-item">
+          <div>
+            <span class="degree"
+              >Master of Engineering, Aerospace Engineering</span
+            >
+            <span> – National Aviation University, Ukraine</span>
+          </div>
+          <span class="education-date">2005 – 2010</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
