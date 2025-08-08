@@ -1,51 +1,93 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <h1>Job Assistant</h1>
-  
-  <div class="section">
-    <h3>CV Data</h3>
-    <button id="initializeCV">Initialize CV Data</button>
-    <div id="cvStatus" class="status"></div>
-    <button id="showCV" style="display: none;">View CV Data</button>
-  </div>
+  <head>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Job Assistant</h1>
 
-  <div class="section">
-    <h3>Auto-Fill Settings</h3>
-    <label>
-      <input type="checkbox" id="autoFillEnabled" checked /> 
-      Enable Auto-Fill
-    </label>
-    <button id="triggerAutoFill">Fill Current Page</button>
-  </div>
+    <div class="section">
+      <h3>CV Data</h3>
+      <button id="initializeCV">Initialize CV Data</button>
+      <div id="cvStatus" class="status"></div>
+      <button id="showCV" style="display: none">View CV Data</button>
+    </div>
 
-  <div class="section">
-    <h3>API Configuration</h3>
-    <input type="password" id="apiKey" placeholder="OpenAI API Key" />
-    <button id="saveApiKey">Save API Key</button>
-    <div id="apiStatus" class="status"></div>
-  </div>
+    <div class="section">
+      <h3>Auto-Fill Settings</h3>
+      <label>
+        <input type="checkbox" id="autoFillEnabled" checked />
+        Enable Auto-Fill
+      </label>
+      <button id="triggerAutoFill">Fill Current Page</button>
+    </div>
 
-  <div class="section">
-    <h3>Cover Letter</h3>
-    <button id="generateCoverLetter">Generate Cover Letter</button>
-    <textarea id="coverLetterOutput" placeholder="Generated cover letter will appear here..." readonly></textarea>
-  </div>
+    <div class="section">
+      <h3>AI Configuration</h3>
 
-  <div class="section" id="debugSection" style="display: none;">
-    <h3>Debug Info</h3>
-    <pre id="debugOutput"></pre>
-  </div>
-  
-  <script src="dataStructure.js"></script>
-  <script src="storage.js"></script>
-  <script src="cvParser.js"></script>
-  <script src="companyExtractor.js"></script>
-  <script src="coverLetterGenerator.js"></script>
-  <script src="templates.js"></script>
-  <script src="popup.js"></script>
-</body>
+      <div class="ai-mode-selector">
+        <label>
+          <input
+            type="radio"
+            name="aiMode"
+            value="openai"
+            id="openaiMode"
+            checked
+          />
+          OpenAI API (paid)
+        </label>
+        <label>
+          <input type="radio" name="aiMode" value="local" id="localMode" />
+          Local LLM (free)
+        </label>
+      </div>
+
+      <div id="openaiConfig" class="ai-config">
+        <input type="password" id="apiKey" placeholder="OpenAI API Key" />
+        <button id="saveApiKey">Save API Key</button>
+      </div>
+
+      <div id="localConfig" class="ai-config" style="display: none">
+        <input
+          type="text"
+          id="localURL"
+          placeholder="Local LLM URL"
+          value="http://localhost:11434/api/chat"
+        />
+        <input
+          type="text"
+          id="localModel"
+          placeholder="Model name"
+          value="llama3.1:8b"
+        />
+        <button id="saveLocalConfig">Save Local Config</button>
+        <button id="testLocalConnection">Test Connection</button>
+      </div>
+
+      <div id="apiStatus" class="status"></div>
+    </div>
+
+    <div class="section">
+      <h3>Cover Letter</h3>
+      <button id="generateCoverLetter">Generate Cover Letter</button>
+      <textarea
+        id="coverLetterOutput"
+        placeholder="Generated cover letter will appear here..."
+        readonly
+      ></textarea>
+    </div>
+
+    <div class="section" id="debugSection" style="display: none">
+      <h3>Debug Info</h3>
+      <pre id="debugOutput"></pre>
+    </div>
+
+    <script src="dataStructure.js"></script>
+    <script src="storage.js"></script>
+    <script src="cvParser.js"></script>
+    <script src="companyExtractor.js"></script>
+    <script src="coverLetterGenerator.js"></script>
+    <script src="templates.js"></script>
+    <script src="popup.js"></script>
+  </body>
 </html>

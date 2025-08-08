@@ -26,6 +26,21 @@ async function initializeUI() {
     document.getElementById("autoFillEnabled").checked =
       settings.autoFillEnabled;
 
+    // Load AI mode settings
+    const useLocalLLM = settings.useLocalLLM || false;
+    document.getElementById(
+      useLocalLLM ? "localMode" : "openaiMode"
+    ).checked = true;
+    handleAIModeChange(); // Show appropriate config section
+
+    // Load local LLM settings
+    if (settings.localURL) {
+      document.getElementById("localURL").value = settings.localURL;
+    }
+    if (settings.localModel) {
+      document.getElementById("localModel").value = settings.localModel;
+    }
+
     if (initialized) {
       const cvData = await storage.loadCVData();
       displayCVInfo(cvData);
@@ -49,6 +64,17 @@ function setupEventListeners() {
     .getElementById("autoFillEnabled")
     .addEventListener("change", saveSettings);
   document.getElementById("saveApiKey").addEventListener("click", saveApiKey);
+
+  // AI Mode Configuration
+  document.querySelectorAll('input[name="aiMode"]').forEach(radio => {
+    radio.addEventListener("change", handleAIModeChange);
+  });
+  document
+    .getElementById("saveLocalConfig")
+    .addEventListener("click", saveLocalConfig);
+  document
+    .getElementById("testLocalConnection")
+    .addEventListener("click", testLocalConnection);
 
   // Actions
   document
@@ -357,4 +383,123 @@ function updateStatus(elementId, message, type) {
   const element = document.getElementById(elementId);
   element.textContent = message;
   element.className = `status ${type}`;
+}
+
+// AI Mode Configuration Functions
+function handleAIModeChange() {
+  const useLocal = document.getElementById("localMode").checked;
+  document.getElementById("openaiConfig").style.display = useLocal
+    ? "none"
+    : "block";
+  document.getElementById("localConfig").style.display = useLocal
+    ? "block"
+    : "none";
+
+  // Save the mode immediately
+  saveAIMode();
+}
+
+async function saveAIMode() {
+  try {
+    const useLocalLLM = document.getElementById("localMode").checked;
+    const settings = await storage.loadSettings();
+    settings.useLocalLLM = useLocalLLM;
+    await storage.saveSettings(settings);
+
+    updateStatus(
+      "apiStatus",
+      `Switched to ${useLocalLLM ? "Local LLM" : "OpenAI"} mode`,
+      "info"
+    );
+  } catch (error) {
+    console.error("Error saving AI mode:", error);
+    updateStatus("apiStatus", "Error saving AI mode", "error");
+  }
+}
+
+async function saveLocalConfig() {
+  try {
+    const localURL = document.getElementById("localURL").value.trim();
+    const localModel = document.getElementById("localModel").value.trim();
+
+    if (!localURL || !localModel) {
+      updateStatus(
+        "apiStatus",
+        "Please enter both URL and model name",
+        "error"
+      );
+      return;
+    }
+
+    const settings = await storage.loadSettings();
+    settings.localURL = localURL;
+    settings.localModel = localModel;
+    settings.useLocalLLM = true;
+    await storage.saveSettings(settings);
+
+    updateStatus("apiStatus", "Local LLM configuration saved!", "success");
+  } catch (error) {
+    console.error("Error saving local config:", error);
+    updateStatus("apiStatus", "Error saving local configuration", "error");
+  }
+}
+
+async function testLocalConnection() {
+  try {
+    updateStatus("apiStatus", "Testing connection...", "info");
+
+    const localURL = document.getElementById("localURL").value.trim();
+    const localModel = document.getElementById("localModel").value.trim();
+
+    if (!localURL || !localModel) {
+      updateStatus(
+        "apiStatus",
+        "Please enter both URL and model name",
+        "error"
+      );
+      return;
+    }
+
+    // Test connection to Ollama
+    const testURL = localURL.replace("/api/chat", "/api/tags");
+    const response = await fetch(testURL, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Connection failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    const models = data.models || [];
+    const modelExists = models.some(m => m.name === localModel);
+
+    if (!modelExists) {
+      const availableModels = models.map(m => m.name).join(", ");
+      updateStatus(
+        "apiStatus",
+        `Model '${localModel}' not found. Available: ${availableModels}`,
+        "error"
+      );
+      return;
+    }
+
+    updateStatus(
+      "apiStatus",
+      `✅ Connection successful! Model '${localModel}' is ready.`,
+      "success"
+    );
+  } catch (error) {
+    console.error("Error testing connection:", error);
+    let errorMsg = "Connection failed. ";
+
+    if (error.message.includes("fetch")) {
+      errorMsg += "Make sure Ollama is running: 'ollama serve'";
+    } else {
+      errorMsg += error.message;
+    }
+
+    updateStatus("apiStatus", errorMsg, "error");
+  }
 }
