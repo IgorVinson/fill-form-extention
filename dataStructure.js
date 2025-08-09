@@ -27,7 +27,11 @@ const SettingsSchema = {
   coverLetterEnabled: { type: "boolean", default: false },
   useLocalLLM: { type: "boolean", default: false },
   localURL: { type: "string", default: "http://localhost:11434/api/chat" },
-  localModel: { type: "string", default: "llama3.1:8b" },
+  localModel: { type: "string", default: "deepseek-r1:latest" },
+  aiProvider: { type: "string", default: "deepseek" },
+  deepseekApiKey: { type: "string", required: false },
+  deepseekModel: { type: "string", default: "deepseek-chat" },
+  deepseekURL: { type: "string", default: "https://api.deepseek.com/v1/chat/completions" },
 };
 
 const TemplatesSchema = {
@@ -59,12 +63,27 @@ const getDefaultCVData = () => ({
 
 // Default settings
 const getDefaultSettings = () => ({
+  // AI Provider settings
+  aiProvider: "deepseek", // "openai", "deepseek", or "local"
+  
+  // OpenAI settings
   openaiApiKey: "",
-  autoFillEnabled: true,
-  coverLetterEnabled: false,
-  useLocalLLM: false,
+  
+  // DeepSeek settings
+  deepseekApiKey: "",
+  deepseekURL: "https://api.deepseek.com/v1/chat/completions",
+  deepseekModel: "deepseek-chat",
+  
+  // Local LLM settings
   localURL: "http://localhost:11434/api/chat",
   localModel: "llama3.1:8b",
+  
+  // General settings
+  autoFillEnabled: true,
+  coverLetterEnabled: false,
+  
+  // Legacy compatibility
+  useLocalLLM: false,
 });
 
 // Default templates

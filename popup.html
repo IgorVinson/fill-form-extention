@@ -20,6 +20,7 @@
         Enable Auto-Fill
       </label>
       <button id="triggerAutoFill">Fill Current Page</button>
+      <button id="debugContentScript" style="margin-top: 5px; font-size: 11px;">Debug Content Script</button>
     </div>
 
     <div class="section">
@@ -32,19 +33,43 @@
             name="aiMode"
             value="openai"
             id="openaiMode"
+          />
+          OpenAI API
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="aiMode"
+            value="deepseek"
+            id="deepseekMode"
             checked
           />
-          OpenAI API (paid)
+          DeepSeek API
         </label>
         <label>
           <input type="radio" name="aiMode" value="local" id="localMode" />
-          Local LLM (free)
+          Local LLM
         </label>
       </div>
 
-      <div id="openaiConfig" class="ai-config">
+      <div id="openaiConfig" class="ai-config" style="display: none">
         <input type="password" id="apiKey" placeholder="OpenAI API Key" />
         <button id="saveApiKey">Save API Key</button>
+      </div>
+
+      <div id="deepseekConfig" class="ai-config">
+        <input type="password" id="deepseekApiKey" placeholder="DeepSeek API Key" />
+        <select id="deepseekModel">
+          <option value="deepseek-chat" selected>DeepSeek Chat (Fast)</option>
+          <option value="deepseek-reasoner">DeepSeek Reasoner (Slow, with thinking)</option>
+        </select>
+        <button id="saveDeepSeekConfig">Save DeepSeek Config</button>
+        <button id="testDeepSeekAPI">Test Request to API</button>
+        <small style="color: #666; font-size: 11px;">Recommendation: Use "DeepSeek Chat" for faster form filling</small>
+        <div id="deepseekTestResult" style="display: none; margin-top: 10px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 3px;">
+          <strong>DeepSeek Response:</strong>
+          <div id="deepseekResponse" style="margin-top: 5px; font-family: monospace; font-size: 12px; white-space: pre-wrap;"></div>
+        </div>
       </div>
 
       <div id="localConfig" class="ai-config" style="display: none">
@@ -58,7 +83,7 @@
           type="text"
           id="localModel"
           placeholder="Model name"
-          value="llama3.1:8b"
+          value="deepseek-r1:latest"
         />
         <button id="saveLocalConfig">Save Local Config</button>
         <button id="testLocalConnection">Test Connection</button>
@@ -80,6 +105,12 @@
     <div class="section" id="debugSection" style="display: none">
       <h3>Debug Info</h3>
       <pre id="debugOutput"></pre>
+    </div>
+
+    <div class="section">
+      <h3>AI Response Log</h3>
+      <button id="showAILog">Show AI Response</button>
+      <textarea id="aiLogOutput" rows="10" style="width: 100%; font-family: monospace; font-size: 11px;" readonly placeholder="AI responses will appear here..."></textarea>
     </div>
 
     <script src="dataStructure.js"></script>

@@ -55,7 +55,7 @@ async function initializeLegacySystem() {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "triggerAutoFill") {
-    aiAutoFillForm()
+    aiAutoFillForm(true) // Force run = true for manual triggers
       .then(result =>
         sendResponse({
           success: true,
@@ -94,7 +94,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Main AI-driven auto-fill function
-async function aiAutoFillForm() {
+async function aiAutoFillForm(forceRun = false) {
   try {
     console.log("🚀 Starting AI-driven auto-fill...");
 
@@ -102,8 +102,8 @@ async function aiAutoFillForm() {
     const cvData = await storageManager.loadCVData();
     const settings = await storageManager.loadSettings();
 
-    // Check if auto-fill is enabled
-    if (!settings.autoFillEnabled) {
+    // Check if auto-fill is enabled (unless forced by manual trigger)
+    if (!forceRun && !settings.autoFillEnabled) {
       console.log("Auto-fill is disabled");
       return { success: false, message: "Auto-fill is disabled" };
     }
@@ -127,14 +127,61 @@ async function aiAutoFillForm() {
 
     // Step 3: AI analysis and mapping
     console.log("🤖 Sending data to AI for analysis...");
-    const aiResponse = await aiService.analyzeFormAndGenerateValues(
-      pageData,
-      cvData
-    );
+    console.log("🤖 AI Service config check:", {
+      hasAIService: !!aiService,
+      aiServiceType: typeof aiService,
+      aiServiceConstructor: aiService?.constructor?.name
+    });
+    
+    let aiResponse;
+    try {
+      console.log("🤖 Calling aiService.analyzeFormAndGenerateValues...");
+      aiResponse = await aiService.analyzeFormAndGenerateValues(
+        pageData,
+        cvData
+      );
+      console.log("🤖 AI service returned:", aiResponse);
+    } catch (error) {
+      console.error("❌ AI analysis failed:", error.message);
+      console.error("❌ AI analysis error details:", error);
+      console.error("❌ AI analysis stack:", error.stack);
+      
+      // Try fallback to legacy system
+      console.log("🔄 Falling back to legacy auto-fill system...");
+      console.log("🔄 Reason for fallback: AI system failed with error:", error.message);
+      try {
+        const legacyResult = await legacyAutoFillForm();
+        console.log("✅ Legacy system result:", legacyResult);
+        return {
+          success: true,
+          message: `Legacy auto-fill completed: ${legacyResult.mappedCount} fields filled`,
+          mappedCount: legacyResult.mappedCount,
+          isLegacy: true
+        };
+      } catch (legacyError) {
+        console.error("❌ Legacy fallback also failed:", legacyError);
+        console.error("❌ Legacy fallback error details:", legacyError);
+        return { 
+          success: false, 
+          message: `AI failed: ${error.message}. Legacy fallback also failed: ${legacyError.message}` 
+        };
+      }
+    }
 
     if (!aiResponse || Object.keys(aiResponse).length === 0) {
-      console.log("AI did not generate any field values");
-      return { success: false, message: "AI analysis failed" };
+      console.log("AI did not generate any field values, trying legacy fallback...");
+      
+      try {
+        const legacyResult = await legacyAutoFillForm();
+        return {
+          success: true,
+          message: `Legacy auto-fill completed: ${legacyResult.mappedCount} fields filled`,
+          mappedCount: legacyResult.mappedCount,
+          isLegacy: true
+        };
+      } catch (legacyError) {
+        return { success: false, message: "Both AI and legacy systems failed" };
+      }
     }
 
     console.log(
@@ -332,8 +379,7 @@ window.checkAIStatus = function () {
 window.debugPageAnalysis = function () {
   console.log("🔍 Running Page Analysis Debug...");
 
-  if (!pageAnalyzer) qwen3;
-  {
+  if (!pageAnalyzer) {
     console.error("❌ PageAnalyzer not loaded");
     return null;
   }
@@ -472,11 +518,34 @@ window.debugAvailableFunctions = function () {
   return available;
 };
 
+// Quick DeepSeek API test
+window.testDeepSeekAPI = async () => {
+  console.log("🧪 Testing DeepSeek API connection...");
+  try {
+    const testAI = new AIService();
+    await testAI.initialize();
+    
+    const testMessages = [
+      { role: "system", content: "You are a helpful assistant. Respond with just 'OK' - no explanations." },
+      { role: "user", content: "Say OK" }
+    ];
+    
+    console.log("Sending test request...");
+    const response = await testAI.sendAIRequest(testMessages);
+    console.log("✅ DeepSeek API test successful! Response:", response);
+    return response;
+  } catch (error) {
+    console.error("❌ DeepSeek API test failed:", error);
+    throw error;
+  }
+};
+
 console.log("✅ Debug functions loaded! Available commands:");
 console.log("- checkAIStatus() - Check if AI components are loaded");
 console.log("- debugPageAnalysis() - Test page field detection");
 console.log("- debugAIAutoFill() - Test full AI workflow");
 console.log("- checkAPIKey() - Check if OpenAI API key is configured");
+console.log("- testDeepSeekAPI() - Test DeepSeek API connection");
 console.log("- testLegacyFallback() - Test legacy auto-fill system");
 console.log(
   "- debugAvailableFunctions() - See what's actually available on the page"
