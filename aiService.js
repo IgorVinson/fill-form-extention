@@ -6,10 +6,16 @@ class AIService {
     this.baseURL = "https://api.openai.com/v1/chat/completions";
     this.model = "gpt-4o-mini"; // Cost-effective model
     this.maxRetries = 3;
-    this.timeout = 30000; // 30 seconds
+    this.timeout = 15000; // 15 seconds - faster fail for debugging
+
+    // AI Provider settings
+    this.aiProvider = "openai"; // "openai", "deepseek", or "local"
+    
+    // DeepSeek settings
+    this.deepseekURL = "https://api.deepseek.com/v1/chat/completions";
+    this.deepseekModel = "deepseek-chat";
 
     // Local LLM settings
-    this.useLocalLLM = false;
     this.localURL = "http://localhost:11434/api/chat"; // Ollama default
     this.localModel = "llama3.1:8b"; // Default local model
   }
@@ -19,26 +25,40 @@ class AIService {
    */
   async initialize() {
     try {
-      const settings = await chrome.storage.local.get([
-        "openaiApiKey",
-        "useLocalLLM",
-        "localURL",
-        "localModel",
-      ]);
+      // Use StorageManager to get settings (matches how they're saved)
+      const storageManager = new StorageManager();
+      const settings = await storageManager.loadSettings();
 
+      // Load AI provider settings
+      this.aiProvider = settings.aiProvider || "openai";
+      
+      // Load DeepSeek settings
+      this.deepseekURL = settings.deepseekURL || "https://api.deepseek.com/v1/chat/completions";
+      this.deepseekModel = settings.deepseekModel || "deepseek-chat";
+      
       // Load local LLM settings
-      this.useLocalLLM = settings.useLocalLLM || false;
       this.localURL = settings.localURL || "http://localhost:11434/api/chat";
       this.localModel = settings.localModel || "llama3.1:8b";
 
-      if (this.useLocalLLM) {
+      console.log(`AIService: Using ${this.aiProvider.toUpperCase()} mode`);
+
+      if (this.aiProvider === "local") {
         // Test local LLM connection
         await this.testLocalConnection();
-        console.log(
-          `AIService: Initialized with local LLM (${this.localModel})`
-        );
+        console.log(`AIService: Initialized with local LLM (${this.localModel})`);
+      } else if (this.aiProvider === "deepseek") {
+        // Use DeepSeek
+        this.apiKey = settings.deepseekApiKey;
+        if (!this.apiKey) {
+          throw new Error(
+            "DeepSeek API key not found. Please configure it in the extension popup."
+          );
+        }
+        this.baseURL = this.deepseekURL;
+        this.model = this.deepseekModel;
+        console.log("AIService: Initialized with DeepSeek API");
       } else {
-        // Use OpenAI
+        // Use OpenAI (default)
         this.apiKey = settings.openaiApiKey;
         if (!this.apiKey) {
           throw new Error(
@@ -64,23 +84,42 @@ class AIService {
   async analyzeFormAndGenerateValues(pageData, cvData) {
     try {
       // Ensure service is initialized
-      if (this.useLocalLLM) {
+      if (this.aiProvider === "local") {
         await this.testLocalConnection();
       } else if (!this.apiKey) {
         await this.initialize();
       }
 
       console.log(
-        `AIService: Analyzing form with ${
-          pageData.fields.length
-        } fields using ${this.useLocalLLM ? "local LLM" : "OpenAI"}`
+        `AIService: Analyzing form with ${pageData.fields.length} fields using ${this.aiProvider.toUpperCase()}`
       );
 
+      // Load standard answers
+      const standardAnswers = await this.loadStandardAnswers();
+
       // Create optimized prompt
-      const prompt = this.createFormAnalysisPrompt(pageData, cvData);
+      const prompt = this.createFormAnalysisPrompt(pageData, cvData, standardAnswers);
+
+      // Log the complete prompt structure being sent
+      console.log("=".repeat(80));
+      console.log("🤖 DEEPSEEK API REQUEST - RAW PROMPT:");
+      console.log("=".repeat(80));
+      console.log("System Prompt:", prompt[0].content);
+      console.log("-".repeat(40));
+      console.log("User Prompt:", prompt[1].content);
+      console.log("=".repeat(80));
 
       // Send request to OpenAI
       const response = await this.sendAIRequest(prompt);
+
+      // Log the raw AI response
+      console.log("=".repeat(80));
+      console.log("🤖 DEEPSEEK API RESPONSE - RAW DATA:");
+      console.log("=".repeat(80));
+      console.log("Raw Response Length:", response.length, "characters");
+      console.log("Raw Response Content:");
+      console.log(response);
+      console.log("=".repeat(80));
 
       // Parse and validate response
       const parsedResponse = this.parseAIResponse(response);
@@ -90,6 +129,10 @@ class AIService {
           Object.keys(parsedResponse).length
         } fields`
       );
+
+      // Log the AI response for debugging
+      this.logAIResponse(response, parsedResponse);
+
       return parsedResponse;
     } catch (error) {
       console.error("AIService: Form analysis failed:", error);
@@ -98,67 +141,97 @@ class AIService {
   }
 
   /**
+   * Load standard answers from JSON file
+   * @returns {Object} Standard answers data
+   */
+  async loadStandardAnswers() {
+    try {
+      const response = await fetch(chrome.runtime.getURL("standard-answers.json"));
+      const standardAnswers = await response.json();
+      console.log("AIService: Loaded standard answers:", standardAnswers);
+      return standardAnswers;
+    } catch (error) {
+      console.warn("AIService: Could not load standard answers:", error);
+      // Return basic fallback data
+      return {
+        personal: {
+          middleName: "",
+          gender: "Male",
+          address: { street: "8044 sycamore hill ln", city: "Raleigh", state: "NC", zipCode: "27612" }
+        },
+        workAuthorization: { authorized: true, needsSponsorship: false },
+        background: { hasDisability: false, isVeteran: false },
+        currentDate: { year: 2025, month: 8, day: 8, formatted: "08/08/2025" }
+      };
+    }
+  }
+
+  /**
    * Create optimized prompt for form analysis
    * @param {Object} pageData - Page data
    * @param {Object} cvData - CV data
+   * @param {Object} standardAnswers - Standard answers for common questions
    * @returns {Array} Messages array for OpenAI API
    */
-  createFormAnalysisPrompt(pageData, cvData) {
-    // Prepare simplified page data for AI
-    const simplifiedFields = pageData.fields.map(field => ({
-      id: field.id,
-      type: field.type,
-      label: field.label,
-      placeholder: field.placeholder,
-      required: field.required,
-      options: field.options,
-      context: field.context.parentText,
-    }));
+  createFormAnalysisPrompt(pageData, cvData, standardAnswers) {
 
-    // Prepare simplified CV data
-    const simplifiedCV = {
-      personal: {
-        name: cvData.name || "",
-        email: cvData.email || "",
-        phone: cvData.phone || "",
-        location: cvData.location || "",
-        linkedin: cvData.linkedin || "",
-      },
-      professional: {
-        title: cvData.title || "",
-        summary: cvData.summary || "",
-        experience: cvData.experience || [],
-        skills: cvData.skills || [],
-        education: cvData.education || [],
-      },
+    const systemPrompt = `Fill job forms with CV data. Be creative and helpful - don't leave fields empty! Rules:
+1. Return ONLY valid JSON: {"field_id": "value"}
+2. Text fields: string values (be creative with reasonable defaults)
+3. Dropdowns: exact option from list (choose most relevant)
+4. Checkboxes/radio: true/false (choose logically appropriate values)
+5. Numbers: numeric only (use reasonable defaults like years of experience)
+6. For unknown fields: Make intelligent guesses based on field names and common job application patterns
+7. Use your knowledge to fill gaps (e.g., LinkedIn URL format, GitHub username, cover letter content)
+8. Never use empty strings "" - always provide meaningful values
+9. No explanations, no markdown
+10. IMPORTANT: Respond immediately without thinking or reasoning`;
+
+    // Optimize field data to reduce token usage
+    const compactFields = pageData.fields.map(field => {
+      const compact = {
+        id: field.id,
+        type: field.type,
+        label: field.label || field.placeholder || "unknown"
+      };
+      if (field.required) compact.req = true;
+      if (field.options && field.options.length > 0) compact.opts = field.options.slice(0, 10); // Limit options
+      return compact;
+    });
+
+    // Enhanced CV data - provide more context for creative filling
+    const compactCV = {
+      name: cvData.personal?.name || cvData.name || "",
+      email: cvData.personal?.email || cvData.email || "",
+      phone: cvData.personal?.phone || cvData.phone || "",
+      location: cvData.personal?.location || cvData.location || "",
+      title: cvData.professional?.title || cvData.title || "",
+      linkedin: cvData.personal?.linkedin || "",
+      workAuth: cvData.personal?.workAuthorization || "",
+      summary: cvData.professional?.summary || "",
+      skills: cvData.professional?.skills?.slice(0, 10) || [], // Top 10 skills
+      experience: cvData.professional?.experience?.slice(0, 3)?.map(exp => ({
+        company: exp.company,
+        position: exp.position,
+        years: exp.duration
+      })) || [],
+      education: cvData.professional?.education?.slice(0, 2)?.map(edu => ({
+        school: edu.school,
+        degree: edu.degree,
+        field: edu.field
+      })) || []
     };
 
-    const systemPrompt = `You are an expert assistant that helps fill job application forms based on CV data.
+    const userPrompt = `Form fields:
+${JSON.stringify(compactFields)}
 
-IMPORTANT RULES:
-1. Return ONLY a valid JSON object with field IDs as keys and appropriate values
-2. For text fields: provide direct string values
-3. For dropdowns/selects: match the exact option value from the provided options
-4. For checkboxes/radio: return boolean true/false or the exact option value
-5. For number fields: return numeric values only
-6. If you cannot determine a value, use empty string ""
-7. Do not include any explanation or markdown formatting
+My CV:
+${JSON.stringify(compactCV)}
 
-RESPONSE FORMAT:
-{
-  "field_id": "value",
-  "another_field": "another_value"
-}`;
+Standard answers for common questions:
+${JSON.stringify(standardAnswers)}
 
-    const userPrompt = `Analyze this job application form and fill it with appropriate values based on my CV.
-
-FORM FIELDS:
-${JSON.stringify(simplifiedFields, null, 2)}
-
-MY CV DATA:
-${JSON.stringify(simplifiedCV, null, 2)}
-
-Please provide values for each field based on my CV data. Return only the JSON response.`;
+Fill form with my CV data and standard answers. Be creative and comprehensive - fill ALL fields with meaningful values. Use the standard answers for demographics, work authorization, disability, veteran status, address, etc. Always use current date (2025) not old dates. Return only JSON.`;
 
     return [
       { role: "system", content: systemPrompt },
@@ -177,16 +250,14 @@ Please provide values for each field based on my CV data. Return only the JSON r
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(
-          `AIService: Sending request (attempt ${attempt}/${
-            this.maxRetries
-          }) to ${this.useLocalLLM ? "local LLM" : "OpenAI"}`
+          `AIService: Sending request (attempt ${attempt}/${this.maxRetries}) to ${this.aiProvider.toUpperCase()}`
         );
 
-        const response = this.useLocalLLM
+        const response = this.aiProvider === "local"
           ? await this.makeLocalAPICall(messages)
-          : await this.makeOpenAICall(messages);
+          : await this.makeOpenAICall(messages); // Direct API call to avoid timeout issues
 
-        const content = this.useLocalLLM
+        const content = this.aiProvider === "local"
           ? response.message?.content
           : response.choices?.[0]?.message?.content;
 
@@ -221,7 +292,90 @@ Please provide values for each field based on my CV data. Return only the JSON r
   }
 
   /**
-   * Make actual API call to OpenAI
+   * Make API call via background script to avoid CORS
+   * @param {Array} messages - Messages for the API
+   * @returns {Object} Raw API response
+   */
+  async makeOpenAICallViaBackground(messages) {
+    const requestBody = {
+      model: this.model,
+      messages: messages,
+      temperature: 0.1,
+      max_tokens: 4000,
+    };
+
+    // Configure based on provider
+    if (this.aiProvider === "deepseek") {
+      if (this.model.includes("r1")) {
+        requestBody.reasoning_effort = "low";
+      }
+    } else {
+      requestBody.response_format = { type: "json_object" };
+    }
+
+    console.log(`AIService: Making ${this.aiProvider.toUpperCase()} request via background script`);
+    console.log(`AIService: URL: ${this.baseURL}`);
+    console.log(`AIService: Model: ${this.model}`);
+    
+    // Log complete request body being sent to DeepSeek
+    console.log("=".repeat(80));
+    console.log("📤 COMPLETE REQUEST BODY TO DEEPSEEK:");
+    console.log("=".repeat(80));
+    console.log(JSON.stringify(requestBody, null, 2));
+    console.log("=".repeat(80));
+
+    return new Promise((resolve, reject) => {
+      console.log("AIService: Sending message to background...");
+      
+      // Add timeout for background script response
+      const timeout = setTimeout(() => {
+        reject(new Error("Background script timeout - no response after 30 seconds"));
+      }, 30000);
+
+      chrome.runtime.sendMessage(
+        {
+          action: "makeOpenAICall",
+          url: this.baseURL,
+          options: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          },
+          apiKey: this.apiKey,
+        },
+        response => {
+          clearTimeout(timeout);
+          console.log("AIService: Got response from background:", response);
+          
+          if (chrome.runtime.lastError) {
+            console.error("AIService: Chrome runtime error:", chrome.runtime.lastError);
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+
+          if (response?.error) {
+            reject(new Error(response.error));
+            return;
+          }
+
+          if (response?.success) {
+            // Log the complete API response from DeepSeek
+            console.log("=".repeat(80));
+            console.log("📨 COMPLETE DEEPSEEK API RESPONSE:");
+            console.log("=".repeat(80));
+            console.log(JSON.stringify(response.data, null, 2));
+            console.log("=".repeat(80));
+            resolve(response.data);
+          } else {
+            reject(new Error("Unexpected response format"));
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Make actual API call to OpenAI/DeepSeek directly (CORS issues)
    * @param {Array} messages - Messages for the API
    * @returns {Object} Raw API response
    */
@@ -230,14 +384,46 @@ Please provide values for each field based on my CV data. Return only the JSON r
       model: this.model,
       messages: messages,
       temperature: 0.1, // Low temperature for consistent responses
-      max_tokens: 2000,
-      response_format: { type: "json_object" }, // Ensure JSON response
+      max_tokens: 4000, // Increased for longer forms
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    // Configure based on provider
+    if (this.aiProvider === "deepseek") {
+      // DeepSeek-specific settings to disable thinking and speed up responses
+      if (this.model.includes("r1")) {
+        // For R1 models, we can try to disable thinking
+        requestBody.reasoning_effort = "low"; // Minimize thinking time
+      }
+      // Don't use response_format for DeepSeek
+    } else {
+      // OpenAI settings
+      requestBody.response_format = { type: "json_object" };
+    }
+
+    console.log(`AIService: Making ${this.aiProvider.toUpperCase()} request to:`, this.baseURL);
+    console.log(`AIService: Using model:`, this.model);
+    console.log(`AIService: Request body size:`, JSON.stringify(requestBody).length, 'characters');
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    };
+
+    // Make direct API call (reverting to working approach)
+    console.log(`AIService: Making direct ${this.aiProvider.toUpperCase()} request to:`, this.baseURL);
+    console.log(`AIService: Using model:`, this.model);
+    console.log(`AIService: Request body size:`, JSON.stringify(requestBody).length, 'characters');
 
     try {
+      const startTime = Date.now();
+      
+      // Add timeout to prevent freezing
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
       const response = await fetch(this.baseURL, {
         method: "POST",
         headers: {
@@ -245,13 +431,27 @@ Please provide values for each field based on my CV data. Return only the JSON r
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(requestBody),
-        signal: controller.signal,
+        signal: controller.signal
       });
-
+      
       clearTimeout(timeoutId);
 
+      const responseTime = Date.now() - startTime;
+      console.log(`AIService: Response received in ${responseTime}ms`);
+      console.log(`AIService: Response status: ${response.status}`);
+      console.log(`AIService: Response headers:`, Object.fromEntries(response.headers));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text().catch(() => "Unknown error");
+        console.error(`AIService: API Error ${response.status}:`, errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: { message: errorText } };
+        }
+        
         throw new Error(
           `API Error ${response.status}: ${
             errorData.error?.message || response.statusText
@@ -259,9 +459,12 @@ Please provide values for each field based on my CV data. Return only the JSON r
         );
       }
 
-      return await response.json();
+      console.log(`AIService: Parsing JSON response...`);
+      const jsonData = await response.json();
+      console.log(`AIService: ✅ SUCCESS! Got response from DeepSeek:`, jsonData);
+      console.log(`AIService: Response parsing completed, returning data...`);
+      return jsonData;
     } catch (error) {
-      clearTimeout(timeoutId);
       if (error.name === "AbortError") {
         throw new Error(
           "Request timeout - AI service took too long to respond"
@@ -272,7 +475,7 @@ Please provide values for each field based on my CV data. Return only the JSON r
   }
 
   /**
-   * Make API call to local LLM (Ollama)
+   * Make API call to local LLM (Ollama) via background script
    * @param {Array} messages - Messages for the API
    * @returns {Object} Raw API response
    */
@@ -287,77 +490,90 @@ Please provide values for each field based on my CV data. Return only the JSON r
       },
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    };
 
-    try {
-      const response = await fetch(this.localURL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    // Use background script to make the API call (to avoid CORS)
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        {
+          action: "makeLocalAPICall",
+          url: this.localURL,
+          options: options,
         },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+        response => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
 
-      clearTimeout(timeoutId);
+          if (response.error) {
+            reject(new Error(response.error));
+            return;
+          }
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(`Local LLM Error ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === "AbortError") {
-        throw new Error("Request timeout - Local LLM took too long to respond");
-      }
-      if (error.message.includes("fetch")) {
-        throw new Error(
-          "Cannot connect to local LLM. Make sure Ollama is running on " +
-            this.localURL
-        );
-      }
-      throw error;
-    }
+          if (response.success) {
+            resolve(response.data);
+          } else {
+            reject(new Error("Unexpected response format"));
+          }
+        }
+      );
+    });
   }
 
   /**
-   * Test connection to local LLM
+   * Test connection to local LLM via background script
    * @returns {boolean} Connection successful
    */
   async testLocalConnection() {
-    try {
-      const testURL = this.localURL.replace("/api/chat", "/api/tags");
-      const response = await fetch(testURL, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
+    // Use background script to test connection (to avoid CORS)
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        {
+          action: "testLocalConnection",
+          url: this.localURL,
+        },
+        response => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
 
-      if (!response.ok) {
-        throw new Error(`Local LLM not responding (${response.status})`);
-      }
+          if (response.error) {
+            reject(new Error(`Local LLM connection failed: ${response.error}`));
+            return;
+          }
 
-      const data = await response.json();
-      const models = data.models || [];
-      const modelExists = models.some(m => m.name === this.localModel);
+          if (response.success) {
+            const models = response.data.models || [];
+            const modelExists = models.some(m => m.name === this.localModel);
 
-      if (!modelExists) {
-        throw new Error(
-          `Model '${this.localModel}' not found. Available models: ${models
-            .map(m => m.name)
-            .join(", ")}`
-        );
-      }
+            if (!modelExists) {
+              const availableModels = models.map(m => m.name).join(", ");
+              reject(
+                new Error(
+                  `Model '${this.localModel}' not found. Available models: ${availableModels}`
+                )
+              );
+              return;
+            }
 
-      console.log(
-        `✅ Local LLM connection successful. Model '${this.localModel}' is available.`
+            console.log(
+              `✅ Local LLM connection successful. Model '${this.localModel}' is available.`
+            );
+            resolve(true);
+          } else {
+            reject(new Error("Unexpected response format"));
+          }
+        }
       );
-      return true;
-    } catch (error) {
-      throw new Error(`Local LLM connection failed: ${error.message}`);
-    }
+    });
   }
 
   /**
@@ -378,6 +594,22 @@ Please provide values for each field based on my CV data. Return only the JSON r
         cleanResponse = cleanResponse
           .replace(/```\n?/, "")
           .replace(/\n?```$/, "");
+      }
+
+      // Attempt to fix truncated JSON
+      if (!cleanResponse.endsWith('}')) {
+        console.warn("AIService: Response appears truncated, attempting to fix...");
+        // Find the last complete field and close the JSON
+        const lastCompleteComma = cleanResponse.lastIndexOf(',');
+        const lastCompleteField = cleanResponse.lastIndexOf('"');
+        
+        if (lastCompleteComma > -1 && lastCompleteField > lastCompleteComma) {
+          // We have an incomplete field, remove it
+          cleanResponse = cleanResponse.substring(0, lastCompleteComma) + '\n}';
+        } else {
+          // Just add closing brace
+          cleanResponse += '\n}';
+        }
       }
 
       // Parse JSON
@@ -402,13 +634,116 @@ Please provide values for each field based on my CV data. Return only the JSON r
         }
       }
 
+      console.log(`AIService: Successfully parsed ${Object.keys(validated).length} fields from response`);
       return validated;
     } catch (error) {
       console.error("AIService: Failed to parse AI response:", error);
-      console.log("Raw response:", aiResponse);
+      console.log("Raw response length:", aiResponse.length);
+      console.log("Raw response preview:", aiResponse.substring(0, 500) + "...");
 
-      // Return empty object as fallback
+      // Try alternative parsing approach for partial JSON
+      try {
+        console.log("AIService: Attempting alternative parsing...");
+        const partialParsed = this.parsePartialJSON(aiResponse);
+        if (Object.keys(partialParsed).length > 0) {
+          console.log(`AIService: Recovered ${Object.keys(partialParsed).length} fields from partial response`);
+          return partialParsed;
+        }
+      } catch (altError) {
+        console.warn("AIService: Alternative parsing also failed");
+      }
+
+      // Return empty object as final fallback
       return {};
+    }
+  }
+
+  /**
+   * Parse partial/truncated JSON by extracting field-value pairs
+   * @param {string} response - Raw response that may contain partial JSON
+   * @returns {Object} Parsed fields
+   */
+  parsePartialJSON(response) {
+    const fields = {};
+    
+    // Remove any JSON wrapper and markdown
+    let content = response.trim();
+    if (content.startsWith("```json")) {
+      content = content.replace(/```json\n?/, "").replace(/\n?```$/, "");
+    }
+    if (content.startsWith("```")) {
+      content = content.replace(/```\n?/, "").replace(/\n?```$/, "");
+    }
+    
+    // Extract field-value pairs using regex
+    const fieldPattern = /"([^"]+)":\s*("([^"]*)"|true|false|null|(\d+))/g;
+    let match;
+    
+    while ((match = fieldPattern.exec(content)) !== null) {
+      const fieldId = match[1];
+      const rawValue = match[2];
+      
+      // Parse the value
+      let value;
+      if (rawValue === 'true') value = true;
+      else if (rawValue === 'false') value = false;
+      else if (rawValue === 'null') value = "";
+      else if (match[4]) value = parseInt(match[4]); // number
+      else value = match[3] || ""; // string (removing quotes)
+      
+      fields[fieldId] = value;
+    }
+    
+    return fields;
+  }
+
+  /**
+   * Log AI response for debugging in popup
+   * @param {string} rawResponse - Raw AI response
+   * @param {Object} parsedResponse - Parsed response object
+   */
+  async logAIResponse(rawResponse, parsedResponse) {
+    try {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        provider: this.aiProvider,
+        model: this.model,
+        rawResponseLength: rawResponse.length,
+        parsedFields: Object.keys(parsedResponse).length,
+        sampleFields: Object.entries(parsedResponse).slice(0, 5).map(([key, value]) => ({
+          field: key,
+          value: String(value).substring(0, 50) + (String(value).length > 50 ? '...' : '')
+        })),
+        rawResponse: rawResponse.substring(0, 1000) + (rawResponse.length > 1000 ? '\n\n... (truncated)' : '')
+      };
+
+      // Store in chrome storage for popup access
+      const logText = `=== AI Response Log (${logEntry.timestamp}) ===
+Provider: ${logEntry.provider}
+Model: ${logEntry.model}
+Raw Response Length: ${logEntry.rawResponseLength}
+Parsed Fields: ${logEntry.parsedFields}
+
+Sample Fields:
+${logEntry.sampleFields.map(f => `  ${f.field}: "${f.value}"`).join('\n')}
+
+Raw Response (first 1000 chars):
+${logEntry.rawResponse}
+
+================================\n\n`;
+
+      // Append to existing log
+      const result = await chrome.storage.local.get(['aiResponseLog']);
+      const existingLog = result.aiResponseLog || '';
+      const newLog = logText + existingLog; // Newest first
+      
+      // Keep only last 5 entries to avoid storage bloat
+      const entries = newLog.split('===').slice(0, 11); // 5 entries * 2 markers + 1
+      const trimmedLog = entries.join('===');
+      
+      await chrome.storage.local.set({ aiResponseLog: trimmedLog });
+    } catch (error) {
+      console.warn('Failed to log AI response:', error);
     }
   }
 

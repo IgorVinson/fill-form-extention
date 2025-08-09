@@ -84,6 +84,24 @@ class SmartFiller {
           ...fieldMapping,
           element: element,
         });
+        
+        // Visual feedback: briefly highlight filled fields
+        try {
+          const originalBorder = element.style.border;
+          const originalBackground = element.style.backgroundColor;
+          element.style.border = "2px solid #4CAF50";
+          element.style.backgroundColor = "#E8F5E8";
+          
+          setTimeout(() => {
+            element.style.border = originalBorder;
+            element.style.backgroundColor = originalBackground;
+          }, 1500);
+          
+          console.log(`SmartFiller: ✅ Filled field ${fieldMapping.fieldId} with value: "${fieldMapping.processedValue}"`);
+        } catch (visualError) {
+          // Visual feedback failed, but fill was successful
+          console.log(`SmartFiller: ✅ Filled field ${fieldMapping.fieldId} with value: "${fieldMapping.processedValue}" (no visual feedback)`);
+        }
       } else {
         this.failedFields.push({
           ...fieldMapping,
@@ -226,7 +244,16 @@ class SmartFiller {
       }
     } catch (error) {
       console.warn(`SmartFiller: Error filling ${fieldType} field:`, error);
-      return false;
+      
+      // Try basic fallback - just set the value without events
+      try {
+        element.value = String(value || "");
+        console.log(`SmartFiller: ✅ Filled field ${fieldMapping?.fieldId || 'unknown'} with basic value setting`);
+        return true;
+      } catch (basicError) {
+        console.error(`SmartFiller: Complete failure for field:`, basicError);
+        return false;
+      }
     }
   }
 
@@ -234,40 +261,74 @@ class SmartFiller {
    * Fill text input fields
    */
   fillTextInput(element, value) {
-    if (typeof value !== "string") {
-      value = String(value || "");
-    }
+    try {
+      if (typeof value !== "string") {
+        value = String(value || "");
+      }
 
-    element.value = value;
-    this.triggerInputEvents(element);
-    return true;
+      element.value = value;
+      
+      // Try to trigger events, but don't fail if it doesn't work
+      try {
+        this.triggerInputEvents(element);
+      } catch (eventError) {
+        console.warn("SmartFiller: Event triggering failed, but value was set:", eventError);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("SmartFiller: Failed to set text input value:", error);
+      return false;
+    }
   }
 
   /**
    * Fill number input fields
    */
   fillNumberInput(element, value) {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) {
-      element.value = "";
-    } else {
-      element.value = numValue.toString();
+    try {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        element.value = "";
+      } else {
+        element.value = numValue.toString();
+      }
+      
+      try {
+        this.triggerInputEvents(element);
+      } catch (eventError) {
+        console.warn("SmartFiller: Event triggering failed for number input, but value was set:", eventError);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("SmartFiller: Failed to set number input value:", error);
+      return false;
     }
-    this.triggerInputEvents(element);
-    return true;
   }
 
   /**
    * Fill textarea fields
    */
   fillTextarea(element, value) {
-    if (typeof value !== "string") {
-      value = String(value || "");
-    }
+    try {
+      if (typeof value !== "string") {
+        value = String(value || "");
+      }
 
-    element.value = value;
-    this.triggerInputEvents(element);
-    return true;
+      element.value = value;
+      
+      try {
+        this.triggerInputEvents(element);
+      } catch (eventError) {
+        console.warn("SmartFiller: Event triggering failed for textarea, but value was set:", eventError);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("SmartFiller: Failed to set textarea value:", error);
+      return false;
+    }
   }
 
   /**
@@ -406,16 +467,63 @@ class SmartFiller {
    * Trigger input events to notify the page of changes
    */
   triggerInputEvents(element) {
-    // Create and dispatch events
-    const events = ["input", "change", "blur"];
+    try {
+      // Set React internal properties if present (for React compatibility)
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 
+        'value'
+      )?.set;
+      
+      const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype, 
+        'value'
+      )?.set;
+      
+      // Apply the appropriate setter
+      if (element.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+        nativeTextAreaValueSetter.call(element, element.value);
+      } else if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(element, element.value);
+      }
 
-    events.forEach(eventType => {
-      const event = new Event(eventType, {
-        bubbles: true,
-        cancelable: true,
+      // Create and dispatch basic events (avoiding constructors that might not exist)
+      const eventNames = ["input", "change", "blur", "keyup"];
+
+      eventNames.forEach(eventName => {
+        try {
+          // Use the most basic Event constructor for compatibility
+          const event = new Event(eventName, {
+            bubbles: true,
+            cancelable: true
+          });
+          
+          element.dispatchEvent(event);
+        } catch (eventError) {
+          // Fallback to createEvent if Event constructor fails
+          try {
+            const event = document.createEvent('Event');
+            event.initEvent(eventName, true, true);
+            element.dispatchEvent(event);
+          } catch (createEventError) {
+            console.warn(`SmartFiller: Could not trigger ${eventName} event:`, createEventError);
+          }
+        }
       });
-      element.dispatchEvent(event);
-    });
+
+      // Additional React-specific event triggering with delay
+      setTimeout(() => {
+        try {
+          const changeEvent = new Event("change", { bubbles: true, cancelable: true });
+          element.dispatchEvent(changeEvent);
+        } catch (error) {
+          // Silent fallback
+        }
+      }, 100);
+
+    } catch (error) {
+      console.warn("SmartFiller: Event triggering failed:", error);
+      // Continue without events - at least the value will be set
+    }
   }
 
   /**

@@ -1,0 +1,46 @@
+{
+  "personal": {
+    "middleName": "",
+    "gender": "Male",
+    "race": "White",
+    "address": {
+      "street": "8044 sycamore hill ln",
+      "city": "Raleigh",
+      "state": "NC",
+      "zipCode": "27612",
+      "country": "United States"
+    }
+  },
+  "workAuthorization": {
+    "authorized": true,
+    "statement": "I am authorized to work in this country for any employer.",
+    "needsSponsorship": false,
+    "citizenshipStatus": "US Citizen"
+  },
+  "background": {
+    "hasDisability": false,
+    "disabilityStatement": "I do not have a disability",
+    "isVeteran": false,
+    "veteranStatus": "Not a veteran",
+    "hasCriminalRecord": false
+  },
+  "preferences": {
+    "startDate": "Immediately",
+    "salaryExpectation": "Competitive",
+    "relocate": false,
+    "workRemote": true,
+    "travelWillingness": "Occasional travel acceptable"
+  },
+  "currentDate": {
+    "year": 2025,
+    "month": 8,
+    "day": 8,
+    "formatted": "08/08/2025"
+  },
+  "commonAnswers": {
+    "whyInterested": "I am excited about this opportunity to contribute my skills and grow professionally with your team.",
+    "availability": "I am available to start immediately and can work full-time.",
+    "referralSource": "Found this position through online job search",
+    "expectedSalary": "Open to discussion based on role and responsibilities"
+  }
+}

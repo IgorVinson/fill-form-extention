@@ -26,12 +26,21 @@ async function initializeUI() {
     document.getElementById("autoFillEnabled").checked =
       settings.autoFillEnabled;
 
-    // Load AI mode settings
-    const useLocalLLM = settings.useLocalLLM || false;
-    document.getElementById(
-      useLocalLLM ? "localMode" : "openaiMode"
-    ).checked = true;
+    // Load AI provider settings
+    const aiProvider = settings.aiProvider || "deepseek";
+    const modeRadio = document.getElementById(aiProvider + "Mode");
+    if (modeRadio) {
+      modeRadio.checked = true;
+    }
     handleAIModeChange(); // Show appropriate config section
+
+    // Load DeepSeek settings
+    if (settings.deepseekApiKey) {
+      document.getElementById("deepseekApiKey").value = settings.deepseekApiKey;
+    }
+    if (settings.deepseekModel) {
+      document.getElementById("deepseekModel").value = settings.deepseekModel;
+    }
 
     // Load local LLM settings
     if (settings.localURL) {
@@ -64,6 +73,9 @@ function setupEventListeners() {
     .getElementById("autoFillEnabled")
     .addEventListener("change", saveSettings);
   document.getElementById("saveApiKey").addEventListener("click", saveApiKey);
+  document.getElementById("saveDeepSeekConfig").addEventListener("click", saveDeepSeekConfig);
+  document.getElementById("testDeepSeekAPI").addEventListener("click", testDeepSeekAPI);
+  document.getElementById("showAILog").addEventListener("click", showAILog);
 
   // AI Mode Configuration
   document.querySelectorAll('input[name="aiMode"]').forEach(radio => {
@@ -80,6 +92,9 @@ function setupEventListeners() {
   document
     .getElementById("triggerAutoFill")
     .addEventListener("click", triggerAutoFill);
+  document
+    .getElementById("debugContentScript")
+    .addEventListener("click", debugContentScript);
   document
     .getElementById("generateCoverLetter")
     .addEventListener("click", generateCoverLetter);
@@ -127,10 +142,11 @@ async function showCVData() {
 // Save settings
 async function saveSettings() {
   try {
+    const currentSettings = await storage.loadSettings();
     const settings = {
+      ...currentSettings, // Preserve existing settings
       autoFillEnabled: document.getElementById("autoFillEnabled").checked,
       coverLetterEnabled: false,
-      openaiApiKey: (await storage.loadSettings()).openaiApiKey,
     };
 
     await storage.saveSettings(settings);
@@ -154,10 +170,33 @@ async function saveApiKey() {
     await storage.saveSettings(settings);
 
     document.getElementById("apiKey").value = "";
-    updateStatus("apiStatus", "API key saved successfully!", "success");
+    updateStatus("apiStatus", "OpenAI API key saved successfully!", "success");
   } catch (error) {
     console.error("Error saving API key:", error);
     updateStatus("apiStatus", "Error saving API key", "error");
+  }
+}
+
+async function saveDeepSeekConfig() {
+  try {
+    const apiKey = document.getElementById("deepseekApiKey").value.trim();
+    const model = document.getElementById("deepseekModel").value.trim();
+    
+    if (!apiKey) {
+      updateStatus("apiStatus", "Please enter a DeepSeek API key", "error");
+      return;
+    }
+
+    const settings = await storage.loadSettings();
+    settings.deepseekApiKey = apiKey;
+    settings.deepseekModel = model || "deepseek-chat";
+    await storage.saveSettings(settings);
+
+    document.getElementById("deepseekApiKey").value = "";
+    updateStatus("apiStatus", "DeepSeek configuration saved successfully!", "success");
+  } catch (error) {
+    console.error("Error saving DeepSeek config:", error);
+    updateStatus("apiStatus", "Error saving DeepSeek config", "error");
   }
 }
 
@@ -174,6 +213,72 @@ async function triggerAutoFill() {
       active: true,
       currentWindow: true,
     });
+
+    console.log("🔍 Debug: Current tab info:", {
+      url: tab.url,
+      title: tab.title,
+      id: tab.id
+    });
+
+    // Check if content script is loaded, if not inject it
+    try {
+      const result = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          return typeof window.aiAutoFillForm === 'function';
+        }
+      });
+      
+      const isLoaded = result[0]?.result;
+      console.log("🔍 Content script loaded?", isLoaded);
+      
+      if (!isLoaded) {
+        console.log("🔧 Content script not loaded, injecting...");
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [
+            "dataStructure.js",
+            "storage.js", 
+            "fieldDetector.js",
+            "fieldMapper.js",
+            "companyExtractor.js",
+            "pageAnalyzer.js",
+            "aiService.js",
+            "responseProcessor.js",
+            "smartFiller.js",
+            "content.js"
+          ]
+        });
+        console.log("✅ Content scripts injected manually");
+        
+        // Wait a bit for scripts to initialize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    } catch (injectionError) {
+      console.error("🔧 Failed to check/inject content scripts:", injectionError);
+      // Try to inject anyway
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [
+            "dataStructure.js",
+            "storage.js", 
+            "fieldDetector.js",
+            "fieldMapper.js",
+            "companyExtractor.js",
+            "pageAnalyzer.js",
+            "aiService.js",
+            "responseProcessor.js",
+            "smartFiller.js",
+            "content.js"
+          ]
+        });
+        console.log("✅ Content scripts force-injected");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (forceError) {
+        console.error("❌ Force injection also failed:", forceError);
+      }
+    }
 
     chrome.tabs.sendMessage(
       tab.id,
@@ -387,13 +492,21 @@ function updateStatus(elementId, message, type) {
 
 // AI Mode Configuration Functions
 function handleAIModeChange() {
-  const useLocal = document.getElementById("localMode").checked;
-  document.getElementById("openaiConfig").style.display = useLocal
-    ? "none"
-    : "block";
-  document.getElementById("localConfig").style.display = useLocal
-    ? "block"
-    : "none";
+  const selectedMode = document.querySelector('input[name="aiMode"]:checked').value;
+  
+  // Hide all config sections
+  document.getElementById("openaiConfig").style.display = "none";
+  document.getElementById("deepseekConfig").style.display = "none";
+  document.getElementById("localConfig").style.display = "none";
+  
+  // Show the relevant config section
+  if (selectedMode === "openai") {
+    document.getElementById("openaiConfig").style.display = "block";
+  } else if (selectedMode === "deepseek") {
+    document.getElementById("deepseekConfig").style.display = "block";
+  } else if (selectedMode === "local") {
+    document.getElementById("localConfig").style.display = "block";
+  }
 
   // Save the mode immediately
   saveAIMode();
@@ -401,14 +514,18 @@ function handleAIModeChange() {
 
 async function saveAIMode() {
   try {
-    const useLocalLLM = document.getElementById("localMode").checked;
+    const selectedMode = document.querySelector('input[name="aiMode"]:checked').value;
     const settings = await storage.loadSettings();
-    settings.useLocalLLM = useLocalLLM;
+    settings.aiProvider = selectedMode;
+    
+    // For backward compatibility, also set useLocalLLM
+    settings.useLocalLLM = selectedMode === "local";
+    
     await storage.saveSettings(settings);
 
     updateStatus(
       "apiStatus",
-      `Switched to ${useLocalLLM ? "Local LLM" : "OpenAI"} mode`,
+      `Switched to ${selectedMode.toUpperCase()} mode`,
       "info"
     );
   } catch (error) {
@@ -501,5 +618,161 @@ async function testLocalConnection() {
     }
 
     updateStatus("apiStatus", errorMsg, "error");
+  }
+}
+
+// Show AI response log
+async function showAILog() {
+  try {
+    const result = await chrome.storage.local.get(['aiResponseLog']);
+    const logData = result.aiResponseLog || "No AI responses logged yet.";
+    document.getElementById("aiLogOutput").value = logData;
+  } catch (error) {
+    document.getElementById("aiLogOutput").value = "Error loading AI log: " + error.message;
+  }
+}
+
+// Test DeepSeek API with hardcoded request
+async function testDeepSeekAPI() {
+  const button = document.getElementById("testDeepSeekAPI");
+  const originalText = button.textContent;
+  
+  try {
+    button.textContent = "Testing...";
+    button.disabled = true;
+    updateStatus("apiStatus", "Sending test request to DeepSeek...", "info");
+    
+    // Clear previous response
+    document.getElementById("deepseekTestResult").style.display = "none";
+    document.getElementById("deepseekResponse").textContent = "";
+    
+    console.log('🧪 Starting DeepSeek API test...');
+    
+    // Get saved DeepSeek settings
+    const settings = await storage.loadSettings();
+    const apiKey = settings.deepseekApiKey;
+    const model = settings.deepseekModel || "deepseek-chat";
+    
+    if (!apiKey) {
+      throw new Error("DeepSeek API key not found. Please save your API key first.");
+    }
+    
+    // Generate random prompt to get different jokes each time
+    const animals = ['cat', 'dog', 'elephant', 'penguin', 'giraffe', 'monkey', 'lion', 'bear', 'rabbit', 'duck'];
+    const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+    const randomNumber = Math.floor(Math.random() * 1000) + 1;
+    
+    const requestBody = {
+      model: model,
+      messages: [
+        {
+          role: 'user',
+          content: `hi this is test request #${randomNumber}, can you tell me a different joke about ${randomAnimal}?`
+        }
+      ],
+      temperature: 0.9,
+      max_tokens: 1000
+    };
+    
+    console.log('📤 Sending test request to DeepSeek:', requestBody);
+    
+    // Make direct API call (Note: Close DevTools if you get fetch errors)
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('📡 Response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ DeepSeek API Error:', errorText);
+      throw new Error(`API Error ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('✅ DeepSeek API Response:', data);
+    console.log('🤖 AI Response Content:', data.choices?.[0]?.message?.content);
+    
+    // Log the joke separately for easy reading
+    const joke = data.choices?.[0]?.message?.content;
+    if (joke) {
+      console.log('🎭 Joke from DeepSeek:', joke);
+      
+      // Display the response in the popup
+      document.getElementById("deepseekResponse").textContent = joke;
+      document.getElementById("deepseekTestResult").style.display = "block";
+    }
+    
+    updateStatus("apiStatus", "Test successful! See response below.", "success");
+    
+  } catch (error) {
+    console.error('❌ DeepSeek test failed:', error);
+    updateStatus("apiStatus", `Test failed: ${error.message}`, "error");
+  } finally {
+    button.textContent = originalText;
+    button.disabled = false;
+  }
+}
+
+// Debug content script function
+async function debugContentScript() {
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+
+    console.log("🐛 Debugging content script on tab:", tab.id);
+
+    // Inject a simple debug function
+    const result = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        // Log to page console
+        console.log("🐛 DEBUG: Content script test executed");
+        console.log("🐛 Available functions:", {
+          aiAutoFillForm: typeof window.aiAutoFillForm,
+          pageAnalyzer: typeof window.pageAnalyzer,
+          aiService: typeof window.aiService,
+          storageManager: typeof window.storageManager
+        });
+        
+        // Try to analyze page
+        if (window.pageAnalyzer) {
+          try {
+            const pageData = window.pageAnalyzer.extractPageData();
+            console.log("🐛 Page analysis result:", pageData);
+            return {
+              success: true,
+              pageData: pageData,
+              functions: {
+                aiAutoFillForm: typeof window.aiAutoFillForm,
+                pageAnalyzer: typeof window.pageAnalyzer,
+                aiService: typeof window.aiService,
+                storageManager: typeof window.storageManager
+              }
+            };
+          } catch (error) {
+            console.error("🐛 Page analysis failed:", error);
+            return { success: false, error: error.message };
+          }
+        }
+        
+        return { success: false, error: "pageAnalyzer not available" };
+      }
+    });
+
+    console.log("🐛 Debug result:", result[0]?.result);
+    updateStatus("cvStatus", "Debug info logged to page console (F12)", "info");
+    
+  } catch (error) {
+    console.error("🐛 Debug failed:", error);
+    updateStatus("cvStatus", "Debug failed: " + error.message, "error");
   }
 }

@@ -3,7 +3,14 @@
   "name": "Job Application Assistant",
   "version": "1.0",
   "description": "Auto-fill job forms, download CV, and generate responses using OpenAI.",
-  "permissions": ["storage", "scripting", "activeTab"],
+  "permissions": ["storage", "scripting", "activeTab", "tabs"],
+  "host_permissions": [
+    "http://localhost:11434/*",
+    "https://api.openai.com/*",
+    "https://api.deepseek.com/*",
+    "https://*/*",
+    "http://*/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -29,6 +36,7 @@
         "responseProcessor.js",
         "smartFiller.js",
         "test-phase1.js",
+        "simpleTest.js",
         "content.js"
       ],
       "run_at": "document_idle"
@@ -36,7 +44,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["CV_default.html"],
+      "resources": ["CV_default.html", "standard-answers.json"],
       "matches": ["<all_urls>"]
     }
   ]
