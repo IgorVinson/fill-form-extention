@@ -239,8 +239,6 @@ async function triggerAutoFill() {
           files: [
             "dataStructure.js",
             "storage.js", 
-            "fieldDetector.js",
-            "fieldMapper.js",
             "companyExtractor.js",
             "pageAnalyzer.js",
             "aiService.js",
@@ -263,8 +261,6 @@ async function triggerAutoFill() {
           files: [
             "dataStructure.js",
             "storage.js", 
-            "fieldDetector.js",
-            "fieldMapper.js",
             "companyExtractor.js",
             "pageAnalyzer.js",
             "aiService.js",

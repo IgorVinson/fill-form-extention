@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Chrome browser extension called "Job Application Assistant" that uses AI to automatically fill job application forms based on CV data. The extension has evolved from a simple field-mapping system to an intelligent AI-driven workflow that can analyze any job form and generate appropriate responses.
+This is a Chrome browser extension called "Job Application Assistant" that uses DeepSeek/OpenAI AI integration to intelligently auto-fill job application forms. The extension features AI-powered form analysis, standardized answer integration, and creative field filling that works across all major job sites.
 
 ## Development Commands
 
@@ -17,48 +17,43 @@ This is a Chrome browser extension called "Job Application Assistant" that uses 
 # 4. Click reload button (🔄) after making changes
 
 # Test the extension
-# Open browser console (F12) on any job application page and run:
-testPhase1();  # Run complete integration test
-testPageOnly();  # Test page analysis only
-testCurrentPage();  # Analyze current page forms
+# Use the "Fill Current Page" button in extension popup
+# Or open browser console (F12) on job application pages for debugging
 ```
 
 ### Testing
 ```bash
-# The main test command (run in browser console on job application pages)
-testPhase1();
-
-# Individual component testing
-const pageAnalyzer = new PageAnalyzer();
-const pageData = pageAnalyzer.extractPageData();
+# Primary testing method: Use extension popup "Fill Current Page" button
+# Debug via browser console (F12) to see AI request/response logs
+# Check "AI Response Log" in extension popup for detailed AI interactions
 ```
 
 ## Architecture Overview
 
 ### AI-Driven Workflow (Current System)
-The extension follows a 5-step AI-powered workflow:
+The extension follows a 6-step AI-powered workflow:
 
-1. **Page Analysis** (`pageAnalyzer.js`) - Extracts form structure and context
+1. **Page Analysis** (`pageAnalyzer.js`) - Extracts comprehensive form structure and context
 2. **CV Data Loading** (`storage.js`) - Loads structured CV from local storage  
-3. **AI Analysis** (`aiService.js`) - Sends page+CV data to AI for field mapping
-4. **Response Processing** (`responseProcessor.js`) - Parses AI responses to form data
-5. **Auto-Fill Execution** (`smartFiller.js`) - Applies values to form fields
+3. **Standard Answers Loading** (`standard-answers.json`) - Loads predefined responses for common questions
+4. **AI Analysis** (`aiService.js`) - Sends page+CV+standard answers to DeepSeek/OpenAI for intelligent field mapping
+5. **Response Processing** (`responseProcessor.js`) - Parses and validates AI responses
+6. **Auto-Fill Execution** (`smartFiller.js`) - Applies values to form fields with creative filling
 
 ### Core Components
 
-- **`content.js`** - Main orchestrator script, initializes all components
-- **`pageAnalyzer.js`** - Extracts comprehensive form data (fields, labels, context)
-- **`aiService.js`** - Handles OpenAI/Local LLM integration with intelligent prompting
-- **`responseProcessor.js`** - Maps AI responses back to form fields with validation
+- **`content.js`** - Main orchestrator script, coordinates complete AI workflow
+- **`aiService.js`** - DeepSeek/OpenAI/Local LLM integration with multi-provider support
+- **`pageAnalyzer.js`** - Advanced form field detection and context extraction
+- **`responseProcessor.js`** - Parse and validate AI responses with error handling
 - **`smartFiller.js`** - Universal form filling logic for all field types
 - **`storage.js`** - Local storage management for CV data and settings
+- **`standard-answers.json`** - Predefined responses for demographics, work auth, etc.
 - **`cvParser.js`** - Parses CV_default.html into structured JSON
 - **`background.js`** - Service worker for extension lifecycle events
-- **`popup.js/html`** - Extension popup UI for configuration
+- **`popup.js/html`** - Extension popup UI with AI provider configuration
 
-### Legacy Components (Fallback)
-- **`fieldDetector.js`** - Pattern-based field detection (legacy)
-- **`fieldMapper.js`** - Hardcoded CV-to-field mapping (legacy)
+### Additional Components
 - **`companyExtractor.js`** - Extract company info from job pages
 - **`coverLetterGenerator.js`** - AI cover letter generation
 
@@ -93,40 +88,45 @@ The extension follows a 5-step AI-powered workflow:
 ## AI Integration
 
 ### Supported LLM Options
-- **OpenAI** (default): GPT-4o-mini via API
+- **DeepSeek** (default): deepseek-chat model via API (fast and cost-effective)
+- **OpenAI**: GPT-4o-mini via API
 - **Local LLM**: Ollama integration (localhost:11434) with llama3.1:8b
 
 ### AI Configuration
-- API keys stored in extension storage
-- Prompts optimized for form analysis and field mapping
-- Error handling with retry logic and fallback mechanisms
+- Multi-provider support with easy switching
+- API keys stored securely in extension storage
+- Enhanced prompts for creative field filling (no empty strings)
+- Standard answers integration for consistent responses
+- Error handling with retry logic and provider fallbacks
 
 ## Key Files for Development
 
 - **`manifest.json`** - Extension configuration and permissions
-- **`TESTING.md`** - Comprehensive testing guide with console commands
+- **`standard-answers.json`** - Standardized responses for common questions (editable)
+- **`TESTING.md`** - Comprehensive testing guide
 - **`mvp-roadmap.md`** - Complete development phases and implementation status
-- **`workable-fixes-checklist.md`** - Technical architecture documentation
 
 ## Development Workflow
 
 1. **Make code changes** to relevant component files
 2. **Reload extension** in chrome://extensions/
-3. **Test on job forms** using `testPhase1()` in browser console
-4. **Check console logs** for detailed debugging information
-5. **Verify form filling** works correctly across different field types
+3. **Test on job forms** using "Fill Current Page" button in extension popup
+4. **Check console logs** (F12) for detailed AI request/response debugging
+5. **Review AI Response Log** in extension popup for detailed AI interactions
+6. **Edit standard-answers.json** to customize responses for common questions
 
 ## Testing Strategy
 
 - **Primary test site**: https://apply.workable.com/lago-1/j/88ECCCE5E5/apply/
-- **Console testing**: Use `testPhase1()` for comprehensive workflow testing
-- **Component isolation**: Test individual components with specific functions
+- **Extension popup testing**: Use "Fill Current Page" button for form filling
+- **AI response debugging**: Check AI Response Log in popup for detailed interactions
 - **Cross-site validation**: Test on LinkedIn, Indeed, and other job sites
+- **Standard answers**: Verify demographic and work authorization responses
 
 ## Extension States
 
-- **Phase 1-3: COMPLETE** - Core infrastructure, auto-fill, cover letters
+- **Phase 1-3: COMPLETE** - Core infrastructure, AI-powered auto-fill, cover letters
 - **Phase 4: PENDING** - UI enhancements and polish
-- **Phase 5: COMPLETE** - Intelligent form analysis with AI integration
+- **Phase 5: COMPLETE** - Advanced AI integration with DeepSeek/OpenAI and standard answers
 
-The extension is currently in a fully functional state with AI-driven form filling capabilities.
+The extension is currently in a fully functional state with intelligent AI-driven form filling, creative response generation, and standardized answer integration. All legacy pattern-matching code has been removed in favor of the AI-powered approach.

@@ -28,15 +28,11 @@
       "js": [
         "dataStructure.js",
         "storage.js",
-        "fieldDetector.js",
-        "fieldMapper.js",
         "companyExtractor.js",
         "pageAnalyzer.js",
         "aiService.js",
         "responseProcessor.js",
         "smartFiller.js",
-        "test-phase1.js",
-        "simpleTest.js",
         "content.js"
       ],
       "run_at": "document_idle"

@@ -2,14 +2,15 @@
 
 ## Overview
 
-Chrome extension that auto-fills job applications and generates cover letters using CV data
+Chrome extension that intelligently auto-fills job applications using AI-powered form analysis and generates cover letters with DeepSeek/OpenAI integration.
 
 ### Goals
 
-- Parse CV data and store locally
-- Auto-fill common job application forms
+- Parse CV data and store locally with standard answers
+- AI-powered intelligent form analysis and filling
 - Generate personalized cover letters with AI
 - Work on major job sites (LinkedIn, Indeed, etc.)
+- Use standardized responses for common questions
 
 ## Development Phases
 
@@ -50,23 +51,27 @@ Automatically fill job application forms
 
 #### Tasks
 
-- **2.1 Form Field Detection** _(high priority - COMPLETE)_
+- **2.1 AI Form Analysis** _(high priority - COMPLETE)_
 
-  - Identify common job form fields
+  - AI-powered form field detection and context analysis
   - **Deliverables:**
-    - ✅ fieldDetector.js - Detect form fields by patterns
+    - ✅ pageAnalyzer.js - Extract comprehensive form data
+    - ✅ aiService.js - DeepSeek/OpenAI integration for intelligent field mapping
 
-- **2.2 Smart Field Mapping** _(high priority - COMPLETE)_
+- **2.2 Standard Answers System** _(high priority - COMPLETE)_
 
-  - Map CV data to detected form fields
+  - Standardized responses for common application questions
   - **Deliverables:**
-    - ✅ fieldMapper.js - CV data to form field mapping
+    - ✅ standard-answers.json - Predefined answers for demographics, work auth, etc.
+    - ✅ Enhanced AI prompts with standard answer integration
 
 - **2.3 Auto-Fill Engine** _(high priority - COMPLETE)_
 
-  - Populate forms with appropriate CV data
+  - AI-driven form population with creative field filling
   - **Deliverables:**
-    - ✅ content.js - Enhanced with auto-fill logic
+    - ✅ smartFiller.js - Universal form filling logic
+    - ✅ responseProcessor.js - Parse and validate AI responses
+    - ✅ content.js - Orchestrates complete AI workflow
 
 - **2.4 Manual Trigger** _(medium priority - COMPLETE)_
   - Add extension button/hotkey to trigger auto-fill
@@ -123,54 +128,54 @@ Improve user experience and reliability
 - **4.4 Data Backup** _(low priority - pending)_
   - Export/import functionality
 
-### Phase 5: Intelligent Form Analysis _(COMPLETE)_
+### Phase 5: AI-Powered Form Intelligence _(COMPLETE)_
 
-Smart context-aware form filling with field analysis
+Advanced AI-driven form analysis with DeepSeek/OpenAI integration
 
 #### Tasks
 
-- **5.1 Context Analysis** _(high priority - COMPLETE)_
+- **5.1 AI Service Integration** _(high priority - COMPLETE)_
 
-  - Analyze field labels, placeholders, and surrounding text for context
+  - Multi-provider AI support (DeepSeek, OpenAI, Local LLM)
   - **Deliverables:**
-    - ✅ Enhanced fieldDetector.js with context analysis
-    - ✅ Field context classification system
+    - ✅ aiService.js - Complete AI integration with provider switching
+    - ✅ Enhanced prompts for creative field filling
+    - ✅ Retry logic and error handling
 
-- **5.2 Experience Calculation** _(high priority - COMPLETE)_
+- **5.2 Comprehensive Page Analysis** _(high priority - COMPLETE)_
 
-  - Calculate total experience from CV experience array
+  - Extract complete form structure with context
   - **Deliverables:**
-    - ✅ Experience calculator utility
-    - ✅ Date parsing and calculation logic
+    - ✅ pageAnalyzer.js - Advanced form field detection and context extraction
+    - ✅ Field relationship and grouping analysis
 
-- **5.3 Company Context Handler** _(medium priority - COMPLETE)_
+- **5.3 Standard Answer Integration** _(high priority - COMPLETE)_
 
-  - Handle company-specific questions intelligently
+  - Consistent responses for common application questions
   - **Deliverables:**
-    - ✅ Company context extractor
-    - ✅ Smart default response system
+    - ✅ standard-answers.json - Demographics, work auth, address, etc.
+    - ✅ AI prompt integration for standardized responses
 
-- **5.4 Field Type Handlers** _(high priority - COMPLETE)_
+- **5.4 Creative Field Filling** _(high priority - COMPLETE)_
 
-  - Specialized handling for dropdowns, radio buttons, checkboxes, file uploads
+  - AI generates meaningful values instead of empty strings
   - **Deliverables:**
-    - ✅ Field type specific filling logic
-    - ✅ Option matching algorithms
-
-- **5.5 Smart Data Matching** _(high priority - COMPLETE)_
-
-  - Context-aware mapping of CV data to form requirements
-  - **Deliverables:**
-    - ✅ Enhanced fieldMapper.js with intelligent matching
-    - ✅ Relevance scoring system
+    - ✅ Enhanced AI prompts encouraging creative responses
+    - ✅ Intelligent guessing for unknown fields
+    - ✅ Current date handling (2025)
 
 ## Technical Architecture
 
 ### Core Components
 
+- **AI Service** (`aiService.js`) - DeepSeek/OpenAI integration for intelligent form analysis
+- **Page Analyzer** (`pageAnalyzer.js`) - Comprehensive form field detection and context extraction
+- **Response Processor** (`responseProcessor.js`) - Parse and validate AI responses
+- **Smart Filler** (`smartFiller.js`) - Universal form filling logic for all field types
 - **CV Parser** (`cvParser.js`) - Extracts structured data from CV_default.html
 - **Storage Manager** (`storage.js`) - Manages local storage operations
-- **Auto-Fill Engine** (`content.js`) - Detects and fills form fields
+- **Standard Answers** (`standard-answers.json`) - Predefined responses for common questions
+- **Content Orchestrator** (`content.js`) - Coordinates complete AI-driven workflow
 - **Cover Letter Generator** (`coverLetterGenerator.js`) - Generates personalized cover letters
 - **Popup Interface** (`popup.js`) - Extension configuration and controls
 
@@ -200,7 +205,12 @@ Smart context-aware form filling with field analysis
 
 #### Settings
 
+- aiProvider (string) - "deepseek", "openai", or "local"
+- deepseekApiKey (string)
+- deepseekModel (string)
 - openaiApiKey (string)
+- localURL (string)
+- localModel (string)
 - autoFillEnabled (boolean)
 - coverLetterEnabled (boolean)
 
@@ -251,11 +261,11 @@ Smart context-aware form filling with field analysis
 - ✅ Work on major job sites (LinkedIn, Indeed, etc.)
 
 ### Enhanced MVP Success Criteria *(ACHIEVED)*
-- ✅ Intelligent field analysis with context understanding
-- ✅ Smart handling of experience/date calculations
-- ✅ Company-specific question recognition and handling
-- ✅ Field type-specific logic (dropdowns, radio buttons, etc.)
-- ✅ Context-aware data matching with relevance scoring
+- ✅ AI-powered form analysis with DeepSeek/OpenAI integration
+- ✅ Creative field filling that avoids empty string responses
+- ✅ Standard answers for common application questions
+- ✅ Multi-provider AI support (DeepSeek, OpenAI, Local LLM)
+- ✅ Current date handling and demographic information integration
 
 ## Timeline Estimates
 
